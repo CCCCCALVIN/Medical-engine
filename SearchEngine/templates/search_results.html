@@ -1,0 +1,172 @@
+<!-- search/templates/search_results.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Search Results</title>
+    <!-- 引入Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 引入Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .list-group-item p, .list-group-item h5 {
+            margin-bottom: 0.5rem;
+        }
+        .list-group-item h5 {
+            color: #561e33;
+            font-weight: bold;
+        }
+        .list-group-item .authors {
+            font-style: italic;
+            word-wrap: break-word; /* 保证换行 */
+            white-space: pre-wrap; /* 保证换行 */
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="my-4">Medical Imaging Search Engine</h1>
+        <form method="get" action="{% url 'search_papers' %}" class="form-inline mb-4">
+            <div class="form-group mr-2">
+                <select name="search_type" class="form-control">
+                    <option value="author" {% if request.GET.search_type == 'author' %}selected{% endif %}>Author</option>
+                    <option value="title" {% if request.GET.search_type == 'title' %}selected{% endif %}>Title</option>
+                    <option value="keywords" {% if request.GET.search_type == 'keywords' or not request.GET.search_type %}selected{% endif %}>Keywords</option>
+                </select>
+            </div>
+            <div class="form-group mr-2">
+                <input type="text" name="search_term" class="form-control" placeholder="Search Term" value="{{ request.GET.search_term }}">
+            </div>
+            <button type="submit" class="btn btn-primary">Search</button>
+        </form>
+        <div class="row">
+            <div class="col-md-9">
+                <ul class="list-group">
+                {% for paper in papers %}
+                    <li class="list-group-item">
+                        <p><strong>Paper ID:</strong> <a href="{{ paper.PaperURL }}" target="_blank">{{ paper.PaperID }}</a></p>
+                        <h5>{{ paper.Title }}</h5>
+                        <p class="authors"><strong>Authors:</strong> {{ paper.PaperAuthors|safe }}</p>
+                        <p><strong>Keywords:</strong> {{ paper.Keywords }}</p>
+                        <p><strong>Abstract:</strong> {{ paper.Abstract }}</p>
+                        <p><strong>Submission Date:</strong> {{ paper.SubmissionDate }}</p>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item">No results found.</li>
+                {% endfor %}
+                </ul>
+                                <!-- 分页控件 -->
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center mt-4">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if request.GET.search_term %}search_term={{ request.GET.search_term }}&{% endif %}{% if request.GET.search_type %}search_type={{ request.GET.search_type }}&{% endif %}page=1" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if request.GET.search_term %}search_term={{ request.GET.search_term }}&{% endif %}{% if request.GET.search_type %}search_type={{ request.GET.search_type }}&{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item"><a class="page-link" href="?{% if request.GET.search_term %}search_term={{ request.GET.search_term }}&{% endif %}{% if request.GET.search_type %}search_type={{ request.GET.search_type }}&{% endif %}page={{ num }}">{{ num }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if request.GET.search_term %}search_term={{ request.GET.search_term }}&{% endif %}{% if request.GET.search_type %}search_type={{ request.GET.search_type }}&{% endif %}page={{ page_obj.next_page_number }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if request.GET.search_term %}search_term={{ request.GET.search_term }}&{% endif %}{% if request.GET.search_type %}search_type={{ request.GET.search_type }}&{% endif %}page={{ page_obj.paginator.num_pages }}" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            <div class="col-md-3">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h3>Keyword Explanation</h3>
+                    </div>
+                    <div class="card-body">
+                        {% for keyword, explanation in searched_explanations.items %}
+                            <p><strong>{{ keyword }}:</strong> {{ explanation }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h3>Relevance Analysis</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>Found {{ result_count }} results</p>
+                        <canvas id="relevanceChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Similar Papers</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group">
+                        {% for paper in similar_papers %}
+                            <li class="list-group-item">
+                                <p><strong>Paper ID:</strong> <a href="{{ paper.PaperURL }}" target="_blank">{{ paper.PaperID }}</a></p>
+                                <h5>{{ paper.Title }}</h5>
+                                <p><strong>Keywords:</strong> {{ paper.Keywords }}</p>
+                                <p><strong>Abstract:</strong> {{ paper.Abstract|truncatewords:100 }}</p>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item">No similar papers found.</li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 引入Bootstrap JS和依赖 -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script>
+        // 使用视图传递过来的实际数据
+        const relevanceData = {
+            labels: {{ relevance_data.labels|safe }},
+            datasets: [{
+                label: 'TF-IDF Score',
+                data: {{ relevance_data.scores|safe }},
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        };
+
+        const ctx = document.getElementById('relevanceChart').getContext('2d');
+        const relevanceChart = new Chart(ctx, {
+            type: 'bar', // 条形图
+            data: relevanceData,
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
+

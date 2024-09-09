@@ -1,0 +1,10 @@
+python manage.py runserver
+
+
+Navicat Premium 17 是一个强大的工具，帮助开发者和管理员更方便地管理和使用各种数据库。
+
+Docker 是一个开源的平台，用于将应用程序及其依赖打包在一个可移植的容器中。容器可以在任何环境中一致运行，这使得开发、测试和部署更加高效。
+
+只用了 Docker Django
+
+Django 是一个开源的、用于构建 Web 应用程序的高级 Python Web 框架。它强调代码的复用性和快速开发，遵循“Don't Repeat Yourself”（不要重复自己）原则，旨在让开发人员能够高效地构建安全、可扩展的应用程序。
